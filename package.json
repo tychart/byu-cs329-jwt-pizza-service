@@ -4,13 +4,21 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "cd src && node index.js"
+    "start": "cd src && bun index.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint ."
   },
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "eslint": "^10.11.0",
     "express": "^4.19.2",
+    "jest": "^30.5.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.9.7"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.0"
   }
 }
