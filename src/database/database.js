@@ -140,6 +140,65 @@ class DB {
 		}
 	}
 
+	async getUsers(page = 1, limit = 10, nameFilter = "*") {
+		const connection = await this.getConnection();
+		try {
+			// Query-string values arrive as strings; coerce so `pageLimit + 1` is math.
+			const pageLimit = Number(limit);
+			const offset = this.getOffset(Number(page), pageLimit);
+			const name = nameFilter.replace(/\*/g, "%");
+
+			let users = await this.query(
+				connection,
+				`SELECT id, name, email FROM user WHERE name LIKE ? LIMIT ${pageLimit + 1} OFFSET ${offset}`,
+				[name],
+			);
+
+			const more = users.length > pageLimit;
+			if (more) {
+				users = users.slice(0, pageLimit);
+			}
+
+			for (const user of users) {
+				const roleResult = await this.query(
+					connection,
+					`SELECT role, objectId FROM userRole WHERE userId=?`,
+					[user.id],
+				);
+				user.roles = roleResult.map((r) => ({
+					objectId: r.objectId || undefined,
+					role: r.role,
+				}));
+			}
+
+			return [users, more];
+		} finally {
+			connection.end();
+		}
+	}
+
+	async deleteUser(userId) {
+		const connection = await this.getConnection();
+		try {
+			await connection.beginTransaction();
+			try {
+				await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
+					userId,
+				]);
+				await this.query(connection, `DELETE FROM auth WHERE userId=?`, [
+					userId,
+				]);
+				await this.query(connection, `DELETE FROM user WHERE id=?`, [userId]);
+				await connection.commit();
+			} catch {
+				await connection.rollback();
+				throw new StatusCodeError("unable to delete user", 500);
+			}
+		} finally {
+			connection.end();
+		}
+	}
+
 	async loginUser(userId, token) {
 		token = this.getTokenSignature(token);
 		const connection = await this.getConnection();

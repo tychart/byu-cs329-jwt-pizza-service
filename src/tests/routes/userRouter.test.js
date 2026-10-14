@@ -145,16 +145,52 @@ test("PUT /api/user/:userId – rejects unauthenticated request", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /api/user/:userId – delete user (not implemented)
+// DELETE /api/user/:userId – delete user
 // ---------------------------------------------------------------------------
 
-test("DELETE /api/user/:userId – returns not implemented", async () => {
+test("DELETE /api/user/:userId – admin can delete another user", async () => {
+	const throwaway = {
+		name: "throwaway-" + randomName(),
+		email: randomName() + "@test.com",
+		password: "a",
+		roles: [{ role: Role.Diner }],
+	};
+	const created = await DB.addUser(throwaway);
+
 	const res = await request(app)
-		.delete(`/api/user/${testUserId}`)
-		.set("Authorization", `Bearer ${testUserAuthToken}`);
+		.delete(`/api/user/${created.id}`)
+		.set("Authorization", `Bearer ${adminAuthToken}`);
 
 	expect(res.status).toBe(200);
-	expect(res.body).toEqual({ message: "not implemented" });
+	expect(res.body).toEqual({ message: "user deleted" });
+	await expect(DB.getUser(throwaway.email)).rejects.toThrow("unknown user");
+});
+
+test("DELETE /api/user/:userId – user can delete their own account", async () => {
+	const throwaway = {
+		name: "selfdelete-" + randomName(),
+		email: randomName() + "@test.com",
+		password: "a",
+		roles: [{ role: Role.Diner }],
+	};
+	const created = await DB.addUser(throwaway);
+	const token = await setAuth(created);
+
+	const res = await request(app)
+		.delete(`/api/user/${created.id}`)
+		.set("Authorization", `Bearer ${token}`);
+
+	expect(res.status).toBe(200);
+	expect(res.body).toEqual({ message: "user deleted" });
+});
+
+test("DELETE /api/user/:userId – non-admin cannot delete another user", async () => {
+	const res = await request(app)
+		.delete(`/api/user/${adminUser.id}`)
+		.set("Authorization", `Bearer ${testUserAuthToken}`);
+
+	expect(res.status).toBe(403);
+	expect(res.body).toMatchObject({ message: "unauthorized" });
 });
 
 test("DELETE /api/user/:userId – rejects unauthenticated request", async () => {
@@ -165,25 +201,84 @@ test("DELETE /api/user/:userId – rejects unauthenticated request", async () =>
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/user – list users (not implemented)
+// GET /api/user – list users
 // ---------------------------------------------------------------------------
-
-test("GET /api/user – returns empty user list placeholder", async () => {
-	const res = await request(app)
-		.get("/api/user")
-		.set("Authorization", `Bearer ${testUserAuthToken}`);
-
-	expect(res.status).toBe(200);
-	expect(res.body).toEqual({
-		message: "not implemented",
-		users: [],
-		more: false,
-	});
-});
 
 test("GET /api/user – rejects unauthenticated request", async () => {
 	const res = await request(app).get("/api/user");
 
 	expect(res.status).toBe(401);
 	expect(res.body).toEqual({ message: "unauthorized" });
+});
+
+test("GET /api/user – returns users with their roles", async () => {
+	const res = await request(app)
+		.get(`/api/user?name=${adminUser.name}`)
+		.set("Authorization", `Bearer ${adminAuthToken}`);
+
+	expect(res.status).toBe(200);
+	expect(Array.isArray(res.body.users)).toBe(true);
+	expect(res.body).toHaveProperty("more");
+	const listed = res.body.users.find((u) => u.email === adminUser.email);
+	expect(listed).toMatchObject({
+		name: adminUser.name,
+		email: adminUser.email,
+	});
+	expect(listed.roles).toEqual([{ role: "admin" }]);
+});
+
+test("GET /api/user – filters users by name", async () => {
+	const prefix = "filter-" + randomName();
+	for (let i = 0; i < 3; i++) {
+		await DB.addUser({
+			name: `${prefix}-${i}`,
+			email: randomName() + "@test.com",
+			password: "a",
+			roles: [{ role: Role.Diner }],
+		});
+	}
+
+	const res = await request(app)
+		.get(`/api/user?name=${prefix}*`)
+		.set("Authorization", `Bearer ${adminAuthToken}`);
+
+	expect(res.status).toBe(200);
+	expect(res.body.users).toHaveLength(3);
+	for (const user of res.body.users) {
+		expect(user.name).toContain(prefix);
+	}
+});
+
+test("GET /api/user – paginates users and reports more", async () => {
+	const prefix = "page-" + randomName();
+	for (let i = 0; i < 3; i++) {
+		await DB.addUser({
+			name: `${prefix}-${i}`,
+			email: randomName() + "@test.com",
+			password: "a",
+			roles: [{ role: Role.Diner }],
+		});
+	}
+
+	const firstPage = await request(app)
+		.get(`/api/user?page=1&limit=2&name=${prefix}*`)
+		.set("Authorization", `Bearer ${adminAuthToken}`);
+
+	expect(firstPage.status).toBe(200);
+	expect(firstPage.body.users).toHaveLength(2);
+	expect(firstPage.body.more).toBe(true);
+
+	const secondPage = await request(app)
+		.get(`/api/user?page=2&limit=2&name=${prefix}*`)
+		.set("Authorization", `Bearer ${adminAuthToken}`);
+
+	expect(secondPage.status).toBe(200);
+	expect(secondPage.body.users).toHaveLength(1);
+	expect(secondPage.body.more).toBe(false);
+
+	const firstIds = firstPage.body.users.map((u) => u.id);
+	const secondIds = secondPage.body.users.map((u) => u.id);
+	for (const id of secondIds) {
+		expect(firstIds).not.toContain(id);
+	}
 });
