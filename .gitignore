@@ -3,5 +3,6 @@
 .vscode
 config.js
 dist
+coverage/
 
 .env

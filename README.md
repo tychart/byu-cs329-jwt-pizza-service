@@ -25,11 +25,11 @@ curl -fsSL https://bun.sh/install | bash
 | Tool | Why |
 | --- | --- |
 | `bun` | Package manager, task runner, and runtime — use it for everything |
-| `nodejs` | Required only because Jest runs on Node; run it through Bun |
+| `nodejs` | Required only because Vitest runs on Node; run it through Bun |
 | `podman` + `podman-compose` | Runs MySQL |
 | `curl` + `jq` | Used by `generatePizzaData.sh` |
 
-> **Bun first.** Use `bun` / `bunx` for installing and running everything (`bun install`, `bun run start`, `bun run test`). Jest is the one Node-bound piece: `bun run test` delegates to Node for it. Always use `bun run test` (not `bun test`, which would invoke Bun's own test runner) and don't add `--bun`.
+> **Bun first.** Use `bun` / `bunx` for installing and running everything (`bun install`, `bun run start`, `bun run test`). Vitest is the one Node-bound piece: `bun run test` delegates to Node for it. Always use `bun run test` (not `bun test`, which would invoke Bun's own test runner) and don't add `--bun`: forcing Vitest onto Bun returns silently wrong coverage numbers.
 
 Verify:
 
@@ -173,10 +173,15 @@ Seeded accounts:
 ### 5. Run the tests
 
 ```sh
-bun run test            # Jest (auto-starts MySQL if .env has RUN_LOCAL_CONTAINERS=true)
-bun run test:coverage   # Jest with coverage
+bun run test            # Vitest (auto-starts MySQL if .env has RUN_LOCAL_CONTAINERS=true)
+bun run test:watch      # Vitest in watch mode
+bun run test:coverage   # Vitest with coverage -> coverage/coverage-summary.json
 bun run lint            # Biome check (lint + format + imports)
 ```
+
+> Vitest exposes Jest's globals (`test`, `expect`, `beforeAll`, ...), so test files need no imports. Its mocking API is `vi` (`vi.fn()`, `vi.mock()`, `vi.spyOn()`), not `jest`.
+
+CI runs `bun run test:coverage`, so the coverage badge reflects the latest run and the configured thresholds fail the build.
 
 ## Deployment
 

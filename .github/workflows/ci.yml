@@ -63,7 +63,7 @@ jobs:
           };" > src/config.js
 
       - name: Tests
-        run: bun run test
+        run: bun run test:coverage
 
       - name: set version
         id: set_version
