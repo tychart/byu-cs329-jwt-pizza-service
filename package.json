@@ -19,6 +19,7 @@
     "mysql2": "^3.9.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@eslint/js": "^10.0.1",
     "dotenv": "^18.0.4",
     "globals": "^17.12.0",
