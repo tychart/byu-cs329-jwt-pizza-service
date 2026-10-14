@@ -4,6 +4,15 @@ const config = require('../config.js');
 const { StatusCodeError } = require('../endpointHelper.js');
 const { Role } = require('../model/model.js');
 const dbModel = require('./dbModel.js');
+
+// MySQL signal for a UNIQUE constraint violation (e.g. a duplicate user email).
+// Turn it into a readable 409 so clients never see a raw database error.
+function throwIfDuplicateEmail(err) {
+  if (err.code === 'ER_DUP_ENTRY') {
+    throw new StatusCodeError('email already taken', 409);
+  }
+  throw err;
+}
 class DB {
   constructor() {
     this.initialized = this.initializeDatabase();
@@ -34,7 +43,7 @@ class DB {
     try {
       const hashedPassword = await bcrypt.hash(user.password, 10);
 
-      const userResult = await this.query(connection, `INSERT INTO user (name, email, password) VALUES (?, ?, ?)`, [user.name, user.email, hashedPassword]);
+      const userResult = await this.query(connection, `INSERT INTO user (name, email, password) VALUES (?, ?, ?)`, [user.name, user.email, hashedPassword]).catch(throwIfDuplicateEmail);
       const userId = userResult.insertId;
       for (const role of user.roles) {
         switch (role.role) {
@@ -91,7 +100,7 @@ class DB {
       }
       if (params.length > 0) {
         const query = `UPDATE user SET ${params.join(', ')} WHERE id=${userId}`;
-        await this.query(connection, query);
+        await this.query(connection, query).catch(throwIfDuplicateEmail);
       }
       return this.getUser(email, password);
     } finally {

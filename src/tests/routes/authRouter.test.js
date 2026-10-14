@@ -50,13 +50,20 @@ test('register', async () => {
   const registerResBad = await request(app).post('/api/auth');
   expect(registerResBad.status).toBe(400);
   
-  const registerRes = await request(app).post('/api/auth').send(testUser);
+  const newUser = { ...testUser, email: Math.random().toString(36).substring(2, 12) + '@test.com' };
+  const registerRes = await request(app).post('/api/auth').send(newUser);
   expect(registerRes.status).toBe(200);
   expectValidJwt(registerRes.body.token);
 
-  const expectedUser = { ...testUser, roles: [{ role: 'diner' }] };
+  const expectedUser = { ...newUser, roles: [{ role: 'diner' }] };
   delete expectedUser.password;
   expect(registerRes.body.user).toMatchObject(expectedUser);
+});
+
+test('register rejects an email that is already taken', async () => {
+  const registerRes = await request(app).post('/api/auth').send(testUser);
+  expect(registerRes.status).toBe(409);
+  expect(registerRes.body).toMatchObject({ message: 'email already taken' });
 });
 
 test('logout', async () => {
