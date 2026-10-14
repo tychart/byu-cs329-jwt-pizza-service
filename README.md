@@ -25,7 +25,7 @@ curl -fsSL https://bun.sh/install | bash
 | Tool | Why |
 | --- | --- |
 | `bun` | Package manager, task runner, and runtime — use it for everything |
-| `nodejs` | Required only because Jest and ESLint run on Node; run them through Bun |
+| `nodejs` | Required only because Jest runs on Node; run it through Bun |
 | `podman` + `podman-compose` | Runs MySQL |
 | `curl` + `jq` | Used by `generatePizzaData.sh` |
 
@@ -175,7 +175,7 @@ Seeded accounts:
 ```sh
 bun run test            # Jest (auto-starts MySQL if .env has RUN_LOCAL_CONTAINERS=true)
 bun run test:coverage   # Jest with coverage
-bun run lint            # ESLint
+bun run lint            # Biome check (lint + format + imports)
 ```
 
 ## Deployment

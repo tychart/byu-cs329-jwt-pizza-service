@@ -6,7 +6,8 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": ["**", "!coverage", "!src/version.json", "!.pi"]
 	},
 	"formatter": {
 		"enabled": true,
