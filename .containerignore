@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+*.log
+README.md
+LICENSE
+.devenv
+.vscode
+.idea
+
+generatePizzaData.sh
+deployService.sh
+
+Containerfile
+.containerignore
