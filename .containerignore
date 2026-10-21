@@ -12,6 +12,10 @@ LICENSE
 
 generatePizzaData.sh
 deployService.sh
+.env
+.github
+.pi
 
 Containerfile
 .containerignore
+.dockerignore

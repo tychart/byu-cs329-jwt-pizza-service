@@ -4,6 +4,8 @@ name: CI Pipeline
 env:
   # Coverage percentage (0-100). Below this the badge is red, at/above it green.
   COVERAGE_THRESHOLD: 80
+  # ECR repository that receives the container images (created in the AWS console).
+  ECR_REPOSITORY: jwt-pizza-service
 
 on:
   push:
@@ -77,3 +79,88 @@ jobs:
           coverage=$(jq '.total.lines.pct' coverage/coverage-summary.json)
           color=$(echo "$coverage < $COVERAGE_THRESHOLD" | bc | awk '{if ($1) print "red"; else print "green"}')
           curl -s -X POST "https://pizza-factory.cs329.click/api/badge/${{ secrets.NET_ID }}/jwtpizzaservicecoverage?label=Coverage&value=$coverage%25&color=$color" -H "authorization: bearer ${{ secrets.FACTORY_API_KEY }}"
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      # Needed because this job checks out the repo (setting any permission
+      # turns all unlisted ones off, including the default contents: read).
+      contents: read
+      # Needed to mint the GitHub OIDC token assumed by the github-ci IAM role.
+      id-token: write
+    env:
+      version: ${{ needs.build.outputs.version }}
+    steps:
+      # No dist/ package and no artifact upload: the repo root is already the
+      # build context and the Containerfile is self-contained (it installs its
+      # own dependencies). The only thing the tests' config.js has that a
+      # production image must not have is the throwaway DB credentials, so the
+      # config is written here with the real values instead of sed-ing a copy.
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Write production config file
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_HOSTNAME: ${{ secrets.DB_HOSTNAME }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+        run: |
+          node -e '
+            const config = {
+              jwtSecret: process.env.JWT_SECRET,
+              db: {
+                connection: {
+                  host: process.env.DB_HOSTNAME,
+                  user: process.env.DB_USERNAME,
+                  password: process.env.DB_PASSWORD,
+                  database: "pizza",
+                  connectTimeout: 60000,
+                },
+                listPerPage: 10,
+              },
+              factory: {
+                url: "https://pizza-factory.cs329.click",
+                apiKey: process.env.FACTORY_API_KEY,
+              },
+            };
+            require("fs").writeFileSync("src/config.js", `module.exports = ${JSON.stringify(config, null, 2)};\n`);
+          '
+
+      - name: Write version file
+        run: |
+          printf '{"version": "%s" }' "$version" > src/version.json
+
+      - name: Create OIDC token to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ secrets.CI_IAM_ROLE }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up machine emulation
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker build
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push container image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker buildx build \
+            --platform=linux/arm64 \
+            --provenance=false \
+            -f Containerfile \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$version" \
+            --push .
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> "$GITHUB_OUTPUT"
