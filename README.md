@@ -6,6 +6,13 @@ Backend service for making JWT pizzas. This service tracks users and franchises 
 
 JWTs are used for authentication objects.
 
+
+In AWS, I chose to move to Fargate Spot instead of Fargate On-demand to save on price, this is the command to change it back:
+```bash
+aws ecs update-service --cluster jwt-pizza-service --service jwt-pizza-service \
+  --launch-type FARGATE --force-new-deployment
+```
+
 ## Local development (Fedora 44)
 
 Everything runs natively on your machine except MySQL, which runs in a Podman container. The complete stack is:

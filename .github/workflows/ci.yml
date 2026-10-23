@@ -6,6 +6,10 @@ env:
   COVERAGE_THRESHOLD: 80
   # ECR repository that receives the container images (created in the AWS console).
   ECR_REPOSITORY: jwt-pizza-service
+  # ECS target for the deploy step. Both names are the ones from the course
+  # instructions; the service lives in the cluster of the same name.
+  ECS_CLUSTER: jwt-pizza-service
+  ECS_SERVICE: jwt-pizza-service
 
 on:
   push:
@@ -164,3 +168,20 @@ jobs:
             -t "$ECR_REGISTRY/$ECR_REPOSITORY:$version" \
             --push .
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy new container
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment \
+            --region us-east-1
+
+      # Without the waiter this job passes as soon as the new deployment is
+      # queued, so a container that never reaches healthy looks like a success.
+      - name: Wait for the new container to become healthy
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region us-east-1
