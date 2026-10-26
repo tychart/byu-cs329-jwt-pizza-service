@@ -23,6 +23,12 @@ variable "certificate_arn" {
   type        = string
 }
 
+variable "security_group_name" {
+  description = "Existing security group shared by the load balancer and the containers (must allow 443 and 80 in)"
+  type        = string
+  default     = "jwt-pizza-service"
+}
+
 variable "task_definition_family" {
   description = "ECS task definition family to deploy (its newest revision is used)"
   type        = string
@@ -44,7 +50,7 @@ variable "container_port" {
 variable "health_check_path" {
   description = "HTTP path the target group polls to decide if a task is healthy"
   type        = string
-  default     = "/"
+  default     = "/api/docs"
 }
 
 variable "desired_count" {

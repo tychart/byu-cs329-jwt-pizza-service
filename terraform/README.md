@@ -2,7 +2,7 @@
 
 The Terraform equivalent of the course's `cloudFormation/jwt-pizza-service.json`:
 one command creates the ECS cluster, ECS service, ALB, target group and HTTPS
-listener, and one command removes them again.
+listener, and one command removes them again. Five resources in total.
 
 ```
 terraform/
@@ -14,10 +14,12 @@ terraform/
 ```
 
 Terraform **does not** create the ECR repository, the task definition, the IAM
-roles or the MySQL database — those already exist and are intentionally left
-alone. The ECS service always deploys the newest ACTIVE revision of the
-`jwt-pizza-service` task definition, so `terraform apply` never needs a version
-number.
+roles, the security group or the MySQL database — those already exist and are
+intentionally left alone, exactly like the CloudFormation template's parameters.
+The security group is reused by name (see `security_group_name` in
+`variables.tf`); the ECS service always deploys the newest ACTIVE revision of
+the `jwt-pizza-service` task definition, so `terraform apply` never needs a
+version number.
 
 ## Prerequisites
 
@@ -26,6 +28,9 @@ number.
 - The certificate in `terraform.tfvars` must live in **us-east-1** (an ALB can
   only use certificates from its own region). It is the wildcard
   `*.tychart.com` cert, so it covers `pizza-service.tychart.com`.
+- The security group `jwt-pizza-service` must already exist and allow 443 in
+  from the internet plus 80 in from the load balancer (the console-created one
+  does).
 
 ## 1. Delete the manually built backend once
 
@@ -48,7 +53,7 @@ avoids `ResourceInUse`.)
 ```sh
 cd terraform
 terraform init      # first time only: downloads the AWS provider
-terraform plan      # shows "7 to add" — nothing is changed yet
+terraform plan      # shows "5 to add" — nothing is changed yet
 terraform apply     # creates the stack (~2 minutes)
 ```
 
@@ -84,9 +89,9 @@ cd terraform
 terraform destroy
 ```
 
-This deletes the cluster, service, load balancer, listener, target group and
-the two security groups. It keeps the ECR repository, task definitions, the
-database and the ECR images, so bringing it back up is just
+This deletes the cluster, service, load balancer, listener and target group. It
+keeps the ECR repository, task definitions, the security group, the database and
+the ECR images, so bringing it back up is just
 `terraform apply` + a DNS update + a CI run.
 
 > **Wait a few minutes before re-applying.** ECS keeps the deleted service in
@@ -106,6 +111,9 @@ To pause the database bill without deleting data, stop it in the RDS console
   record of what the stack owns, so don't delete it — if you lose it, remove the
   stack by hand or with `terraform import`.
 - `terraform.tfvars` is safe to commit: IDs and ARNs, no secrets.
+- The ECS service runs on **FARGATE_SPOT** (change the one line in `main.tf` to
+  `FARGATE` for guaranteed capacity) and the target group health-checks
+  `/api/docs`, matching the manual console setup.
 - The ECS service has `ignore_changes = [task_definition]` so that a task
   definition revision registered by CI is not rolled back by the next apply.
 - Everything is tagged `Project=jwt-pizza-service`, `ManagedBy=terraform`.

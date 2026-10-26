@@ -49,59 +49,23 @@ data "aws_ecs_task_definition" "app" {
   task_definition = var.task_definition_family
 }
 
+# The existing security group, used by both the load balancer and the
+# containers (exactly like the CloudFormation template's SecurityGroupIDs
+# parameter). It already allows 443 in from the internet and 80 in from the
+# load balancer. Terraform does not create or delete it.
+data "aws_security_group" "app" {
+  name = var.security_group_name
+}
+
 # --- ECS cluster -----------------------------------------------------------
 
 resource "aws_ecs_cluster" "this" {
   name = var.name
 }
 
-# --- Security groups -------------------------------------------------------
-
-# Accepts HTTPS from the internet and forwards to the containers.
-resource "aws_security_group" "alb" {
-  name        = "${var.name}-alb"
-  description = "Public HTTPS access to the ${var.name} load balancer"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description = "HTTPS from anywhere"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# Only the load balancer may reach the containers, and only on the app port.
-resource "aws_security_group" "service" {
-  name        = "${var.name}-service"
-  description = "Access from the ${var.name} load balancer to the containers"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description     = "App port from the load balancer"
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+# --- Security group ---------------------------------------------------------
+# Deliberately not created here: the stack reuses the existing
+# var.security_group_name group (see the data block above).
 
 # --- Load balancer ---------------------------------------------------------
 
@@ -109,7 +73,7 @@ resource "aws_lb" "this" {
   name               = var.name
   load_balancer_type = "application"
   subnets            = data.aws_subnets.all.ids
-  security_groups    = [aws_security_group.alb.id]
+  security_groups    = [data.aws_security_group.app.id]
 
   # Keep it false so `terraform destroy` can remove the ALB without editing it.
   enable_deletion_protection = false
@@ -157,7 +121,7 @@ resource "aws_ecs_service" "this" {
   platform_version = "LATEST"
 
   capacity_provider_strategy {
-    capacity_provider = "FARGATE" # swap for "FARGATE_SPOT" to save money
+    capacity_provider = "FARGATE_SPOT" # ~70% cheaper; "FARGATE" for guaranteed capacity
     weight            = 1
     base              = 0
   }
@@ -180,7 +144,7 @@ resource "aws_ecs_service" "this" {
 
   network_configuration {
     subnets          = data.aws_subnets.all.ids
-    security_groups  = [aws_security_group.service.id]
+    security_groups  = [data.aws_security_group.app.id]
     assign_public_ip = true # the task pulls its image from ECR over the internet
   }
 
