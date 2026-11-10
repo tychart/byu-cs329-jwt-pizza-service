@@ -1,8 +1,10 @@
 const app = require("./service.js");
+const metrics = require("./metrics.js");
 
 const port = process.argv[2] || 3000;
 const server = app.listen(port, () => {
 	console.log(`Server started on port ${port}`);
+	metrics.startReporting();
 });
 
 // Bun runs as PID 1 in the container, and Linux ignores default-action signals

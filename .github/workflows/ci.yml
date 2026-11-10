@@ -67,10 +67,12 @@ jobs:
               apiKey: '${{ secrets.FACTORY_API_KEY }}',
             },
             metrics: {
-              source: 'jwt-pizza-service',
-              endpointUrl: '${{ secrets.METRICS_ENDPOINT_URL, }}',
+              // Tests never send metrics (reporting starts in index.js), but a
+              // distinct source keeps them out of the production series anyway.
+              source: 'jwt-pizza-service-test',
+              endpointUrl: '${{ secrets.METRICS_ENDPOINT_URL }}',
               apiKey: '${{ secrets.METRICS_API_KEY }}',
-              accountId: '${{ secrets.METRICS_ACCOUNT_ID_KEY }}',
+              accountId: '${{ secrets.METRICS_ACCOUNT_ID }}',
             }, 
           };" > src/config.js
 
@@ -118,6 +120,9 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          METRICS_ENDPOINT_URL: ${{ secrets.METRICS_ENDPOINT_URL }}
+          METRICS_ACCOUNT_ID: ${{ secrets.METRICS_ACCOUNT_ID }}
+          METRICS_API_KEY: ${{ secrets.METRICS_API_KEY }}
         run: |
           node -e '
             const config = {
@@ -135,6 +140,12 @@ jobs:
               factory: {
                 url: "https://pizza-factory.cs329.click",
                 apiKey: process.env.FACTORY_API_KEY,
+              },
+              metrics: {
+                source: "jwt-pizza-service",
+                endpointUrl: process.env.METRICS_ENDPOINT_URL,
+                accountId: process.env.METRICS_ACCOUNT_ID,
+                apiKey: process.env.METRICS_API_KEY,
               },
             };
             require("fs").writeFileSync("src/config.js", `module.exports = ${JSON.stringify(config, null, 2)};\n`);

@@ -1,4 +1,5 @@
 const express = require("express");
+const metrics = require("./metrics.js");
 const { authRouter, setAuthUser } = require("./routes/authRouter.js");
 const orderRouter = require("./routes/orderRouter.js");
 const franchiseRouter = require("./routes/franchiseRouter.js");
@@ -7,6 +8,8 @@ const version = require("./version.json");
 const config = require("./config.js");
 
 const app = express();
+// Registered first so every request, including rejected ones, is counted.
+app.use(metrics.requestTracker);
 app.use(express.json());
 app.use(setAuthUser);
 app.use((req, res, next) => {
