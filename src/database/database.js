@@ -540,11 +540,13 @@ class DB {
 				connection.end();
 			}
 		} catch (err) {
+			// Never log the whole connection object: it contains the DB password.
+			const { host, database, connectTimeout } = config.db.connection;
 			console.error(
 				JSON.stringify({
 					message: "Error initializing database",
 					exception: err.message,
-					connection: config.db.connection,
+					connection: { host, database, connectTimeout },
 				}),
 			);
 		}
