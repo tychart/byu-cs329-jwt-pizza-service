@@ -116,12 +116,14 @@ orderRouter.post(
 	asyncHandler(async (req, res) => {
 		const orderReq = req.body;
 		const order = await DB.addDinerOrder(req.user, orderReq);
+		const pizzaCount = order.items.length;
 		const price = order.items.reduce(
 			(total, item) => total + (Number(item.price) || 0),
 			0,
 		);
 		const start = Date.now();
 		let r;
+		let j;
 		try {
 			r = await fetch(`${config.factory.url}/api/order`, {
 				method: "POST",
@@ -138,13 +140,14 @@ orderRouter.post(
 					order,
 				}),
 			});
+			// Inside the try so a malformed body also counts as a failure.
+			j = await r.json();
 		} catch (error) {
-			metrics.pizzaPurchase(false, Date.now() - start, 0);
+			metrics.pizzaPurchase(false, Date.now() - start, 0, pizzaCount);
 			throw error;
 		}
 		const latency = Date.now() - start;
-		const j = await r.json();
-		metrics.pizzaPurchase(r.ok, latency, r.ok ? price : 0);
+		metrics.pizzaPurchase(r.ok, latency, r.ok ? price : 0, pizzaCount);
 		if (r.ok) {
 			res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
 		} else {

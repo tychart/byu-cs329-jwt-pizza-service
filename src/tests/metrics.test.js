@@ -135,24 +135,35 @@ describe("authTracker", () => {
 });
 
 describe("pizzaPurchase", () => {
-	test("tracks sold, failed, revenue and creation latency", () => {
+	test("tracks orders, pizzas, failures, revenue and latency", () => {
 		const metrics = loadMetrics();
 
-		metrics.pizzaPurchase(true, 100, 12.5);
-		metrics.pizzaPurchase(true, 200, 7.5);
-		metrics.pizzaPurchase(false, 400, 0);
+		metrics.pizzaPurchase(true, 100, 12.5, 3);
+		metrics.pizzaPurchase(true, 200, 7.5, 1);
+		metrics.pizzaPurchase(false, 400, 0, 21);
 
 		const built = metrics.buildMetrics();
-		expect(findMetric(built, "pizzas_sold").sum.dataPoints[0].asInt).toBe(2);
+		expect(findMetric(built, "pizza_orders").sum.dataPoints[0].asInt).toBe(3);
+		expect(findMetric(built, "pizzas_sold").sum.dataPoints[0].asInt).toBe(4);
 		expect(
 			findMetric(built, "pizza_creation_failures").sum.dataPoints[0].asInt,
-		).toBe(1);
+		).toBe(21);
 		expect(findMetric(built, "pizza_revenue").sum.dataPoints[0].asDouble).toBe(
 			20,
 		);
 		expect(
 			findMetric(built, "pizza_creation_duration").sum.dataPoints[0].asDouble,
 		).toBe(700);
+	});
+
+	test("defaults to one pizza when no count is supplied", () => {
+		const metrics = loadMetrics();
+
+		metrics.pizzaPurchase(true, 250, 5);
+
+		const built = metrics.buildMetrics();
+		expect(findMetric(built, "pizza_orders").sum.dataPoints[0].asInt).toBe(1);
+		expect(findMetric(built, "pizzas_sold").sum.dataPoints[0].asInt).toBe(1);
 	});
 });
 
@@ -179,6 +190,9 @@ describe("reporting", () => {
 			false,
 		);
 		expect(findMetric(messages, "pizzas_sold").sum.dataPoints[0].asInt).toBe(1);
+		expect(findMetric(messages, "pizza_orders").sum.dataPoints[0].asInt).toBe(
+			1,
+		);
 		expect(
 			payload.resourceMetrics[0].resource.attributes[0].value.stringValue,
 		).toBe(config.metrics.source);

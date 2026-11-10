@@ -16,7 +16,15 @@ const requestLatencies = new Map();
 
 const authAttempts = { success: 0, failure: 0 };
 
-const pizzaPurchases = { sold: 0, failed: 0, revenue: 0, latencyMs: 0 };
+// `orders` counts factory calls (the latency denominator); `sold` and `failed`
+// count pizzas, so a multi-pizza order contributes more than one.
+const pizzaPurchases = {
+	orders: 0,
+	sold: 0,
+	failed: 0,
+	revenue: 0,
+	latencyMs: 0,
+};
 
 // Users seen since the previous report. Reset after each report so the
 // `active_users` gauge describes the current reporting window.
@@ -66,15 +74,21 @@ function authTracker(req, res, next) {
 	next();
 }
 
-// Called by the order router after the Pizza Factory responds.
-function pizzaPurchase(success, latencyMs, price) {
+// Called by the order router after the Pizza Factory responds. Latency is one
+// factory round trip per order, so it is summed once and divided by `orders`
+// later; `pizzaCount` is how many pizzas that order contained.
+function pizzaPurchase(success, latencyMs, price, pizzaCount = 1) {
+	const pizzas = pizzaCount ?? 1;
+
+	pizzaPurchases.orders += 1;
+	pizzaPurchases.latencyMs += latencyMs;
+
 	if (success) {
-		pizzaPurchases.sold += 1;
+		pizzaPurchases.sold += pizzas;
 		pizzaPurchases.revenue += price || 0;
 	} else {
-		pizzaPurchases.failed += 1;
+		pizzaPurchases.failed += pizzas;
 	}
-	pizzaPurchases.latencyMs += latencyMs;
 }
 
 function recordActiveUser(user) {
@@ -122,6 +136,7 @@ function buildMetrics() {
 	);
 
 	metrics.push(
+		createSum("pizza_orders", "1", [createDataPoint(pizzaPurchases.orders)]),
 		createSum("pizzas_sold", "1", [createDataPoint(pizzaPurchases.sold)]),
 		createSum("pizza_creation_failures", "1", [
 			createDataPoint(pizzaPurchases.failed),
