@@ -202,3 +202,10 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE" \
             --region us-east-1
+
+      - name: Annotate deployment in Grafana
+        run: |
+          curl -s -X POST https://smallcheetah366.grafana.net/api/annotations \
+          -H "Authorization: Bearer ${{ secrets.GRAFANA_ACCESS_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{"dashboardUID":"tyf5cgx", "panelId":1, "tags":["backend","production","jwt-pizza"], "text":"Version '"$version"' deployed" }'
