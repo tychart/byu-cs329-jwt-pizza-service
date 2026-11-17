@@ -1,6 +1,7 @@
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const config = require("../config.js");
+const logger = require("../logger.js");
 const { StatusCodeError } = require("../endpointHelper.js");
 const { Role } = require("../model/model.js");
 const dbModel = require("./dbModel.js");
@@ -13,6 +14,40 @@ function throwIfDuplicateEmail(err) {
 	}
 	throw err;
 }
+// Every SQL statement the service runs flows through here, so query logging
+// lives in one place instead of being sprinkled across the DB methods.
+async function logQuery(sql, params, run) {
+	const start = process.hrtime.bigint();
+	try {
+		const result = await run();
+		logger.databaseQuery({
+			sql,
+			params,
+			durationMs: Number(process.hrtime.bigint() - start) / 1e6,
+			rowCount: rowCountOf(result),
+		});
+		return result;
+	} catch (error) {
+		logger.databaseQuery({
+			sql,
+			params,
+			durationMs: Number(process.hrtime.bigint() - start) / 1e6,
+			error,
+		});
+		throw error;
+	}
+}
+
+function rowCountOf(result) {
+	if (Array.isArray(result)) {
+		return result.length;
+	}
+	if (result && typeof result === "object" && "affectedRows" in result) {
+		return result.affectedRows;
+	}
+	return undefined;
+}
+
 class DB {
 	constructor() {
 		this.initialized = this.initializeDatabase();
@@ -248,7 +283,7 @@ class DB {
 				[user.id],
 			);
 			for (const order of orders) {
-				let items = await this.query(
+				const items = await this.query(
 					connection,
 					`SELECT id, menuId, description, price FROM orderItem WHERE orderId=?`,
 					[order.id],
@@ -470,15 +505,18 @@ class DB {
 	}
 
 	async query(connection, sql, params) {
-		const [results] = await connection.execute(sql, params);
-		return results;
+		return logQuery(sql, params, async () => {
+			const [results] = await connection.execute(sql, params);
+			return results;
+		});
 	}
 
 	async getID(connection, key, value, table) {
-		const [rows] = await connection.execute(
-			`SELECT id FROM ${table} WHERE ${key}=?`,
-			[value],
-		);
+		const sql = `SELECT id FROM ${table} WHERE ${key}=?`;
+		const rows = await logQuery(sql, [value], async () => {
+			const [result] = await connection.execute(sql, [value]);
+			return result;
+		});
 		if (rows.length > 0) {
 			return rows[0].id;
 		}
@@ -540,6 +578,7 @@ class DB {
 				connection.end();
 			}
 		} catch (err) {
+			logger.exception(err, { source: "initializeDatabase" });
 			// Never log the whole connection object: it contains the DB password.
 			const { host, database, connectTimeout } = config.db.connection;
 			console.error(
@@ -553,10 +592,12 @@ class DB {
 	}
 
 	async checkDatabaseExists(connection) {
-		const [rows] = await connection.execute(
-			`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
-			[config.db.connection.database],
-		);
+		const sql = `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`;
+		const params = [config.db.connection.database];
+		const rows = await logQuery(sql, params, async () => {
+			const [result] = await connection.execute(sql, params);
+			return result;
+		});
 		return rows.length > 0;
 	}
 }

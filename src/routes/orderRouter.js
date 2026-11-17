@@ -1,6 +1,7 @@
 const express = require("express");
 const config = require("../config.js");
 const metrics = require("../metrics.js");
+const logger = require("../logger.js");
 const { Role, DB } = require("../database/database.js");
 const { authRouter } = require("./authRouter.js");
 const { asyncHandler, StatusCodeError } = require("../endpointHelper.js");
@@ -122,30 +123,47 @@ orderRouter.post(
 			0,
 		);
 		const start = Date.now();
+		const factoryUrl = `${config.factory.url}/api/order`;
+		const factoryBody = {
+			diner: {
+				id: req.user.id,
+				name: req.user.name,
+				email: req.user.email,
+			},
+			order,
+		};
 		let r;
 		let j;
 		try {
-			r = await fetch(`${config.factory.url}/api/order`, {
+			r = await fetch(factoryUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					authorization: `Bearer ${config.factory.apiKey}`,
 				},
-				body: JSON.stringify({
-					diner: {
-						id: req.user.id,
-						name: req.user.name,
-						email: req.user.email,
-					},
-					order,
-				}),
+				body: JSON.stringify(factoryBody),
 			});
 			// Inside the try so a malformed body also counts as a failure.
 			j = await r.json();
 		} catch (error) {
+			logger.factoryRequest({
+				user: req.user,
+				url: factoryUrl,
+				requestBody: factoryBody,
+				durationMs: Date.now() - start,
+				error,
+			});
 			metrics.pizzaPurchase(false, Date.now() - start, 0, pizzaCount);
 			throw error;
 		}
+		logger.factoryRequest({
+			user: req.user,
+			url: factoryUrl,
+			requestBody: factoryBody,
+			responseBody: j,
+			statusCode: r.status,
+			durationMs: Date.now() - start,
+		});
 		const latency = Date.now() - start;
 		metrics.pizzaPurchase(r.ok, latency, r.ok ? price : 0, pizzaCount);
 		if (r.ok) {

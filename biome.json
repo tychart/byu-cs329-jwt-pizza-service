@@ -7,7 +7,14 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!coverage", "!src/version.json", "!.pi"]
+		"includes": [
+			"**",
+			"!coverage",
+			"!src/version.json",
+			"!.pi",
+			"!grafana",
+			"!cloudFormation/jwt-pizza-service.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,

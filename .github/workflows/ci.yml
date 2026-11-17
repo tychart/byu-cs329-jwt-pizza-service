@@ -73,7 +73,15 @@ jobs:
               endpointUrl: '${{ secrets.METRICS_ENDPOINT_URL }}',
               apiKey: '${{ secrets.METRICS_API_KEY }}',
               accountId: '${{ secrets.METRICS_ACCOUNT_ID }}',
-            }, 
+            },
+            logging: {
+              // Tests never start the log flusher (it starts in index.js), but
+              // a distinct source keeps them out of the production streams.
+              source: 'jwt-pizza-service-test',
+              endpointUrl: '${{ secrets.LOGGING_ENDPOINT_URL }}',
+              accountId: '${{ secrets.LOGGING_ACCOUNT_ID }}',
+              apiKey: '${{ secrets.LOGGING_API_KEY }}',
+            },
           };" > src/config.js
 
       - name: Tests
@@ -123,6 +131,9 @@ jobs:
           METRICS_ENDPOINT_URL: ${{ secrets.METRICS_ENDPOINT_URL }}
           METRICS_ACCOUNT_ID: ${{ secrets.METRICS_ACCOUNT_ID }}
           METRICS_API_KEY: ${{ secrets.METRICS_API_KEY }}
+          LOGGING_ENDPOINT_URL: ${{ secrets.LOGGING_ENDPOINT_URL }}
+          LOGGING_ACCOUNT_ID: ${{ secrets.LOGGING_ACCOUNT_ID }}
+          LOGGING_API_KEY: ${{ secrets.LOGGING_API_KEY }}
         run: |
           node -e '
             const config = {
@@ -146,6 +157,12 @@ jobs:
                 endpointUrl: process.env.METRICS_ENDPOINT_URL,
                 accountId: process.env.METRICS_ACCOUNT_ID,
                 apiKey: process.env.METRICS_API_KEY,
+              },
+              logging: {
+                source: "jwt-pizza-service",
+                endpointUrl: process.env.LOGGING_ENDPOINT_URL,
+                accountId: process.env.LOGGING_ACCOUNT_ID,
+                apiKey: process.env.LOGGING_API_KEY,
               },
             };
             require("fs").writeFileSync("src/config.js", `module.exports = ${JSON.stringify(config, null, 2)};\n`);

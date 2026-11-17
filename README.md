@@ -215,6 +215,63 @@ module.exports =  {
 };
 ```
 
+## Logging
+
+Structured logs are pushed to Grafana Cloud Loki (`/loki/api/v1/push`) by
+`src/logger.js`. Logging is configured with the same shape as `metrics`:
+
+```js
+logging: {
+  source: 'jwt-pizza-service', // use jwt-pizza-service-dev locally
+  endpointUrl: 'https://logs-prod-042.grafana.net/loki/api/v1/push',
+  accountId: '1234567', // the user id from the Grafana access policy token
+  apiKey: 'glc_...',    // the token itself
+},
+```
+
+If `logging` is missing or incomplete the logger is a no-op, so the service
+still runs without Grafana credentials.
+
+Events are buffered and sent in batches once per second (and flushed during a
+graceful shutdown), so requests never wait on Grafana. Each line is JSON with
+the labels `source`, `type` (`http`, `database`, `factory`, `exception`,
+`system`), and `level` (`info`, `warn`, `error`):
+
+| Event | What it contains |
+| --- | --- |
+| `http` | method, path, status code, duration, whether an `Authorization` header was present, authenticated user, request body, response body |
+| `database` | SQL, bound parameters, duration, row count, authenticated user |
+| `factory` | factory URL, request body, response body, status code, duration, authenticated user, errors |
+| `exception` | unhandled errors that reach the Express error handler or the process handlers, including the stack |
+
+Passwords, JWTs, authorization headers, API keys, bcrypt hashes, and SQL
+credential literals are redacted before anything is sent. Long values and
+bodies are truncated.
+
+### CI secrets
+
+The pipeline writes `src/config.js` for both jobs, so the repository needs
+these GitHub Actions secrets in addition to the metrics ones:
+
+| Secret | Value |
+| --- | --- |
+| `LOGGING_ENDPOINT_URL` | Loki push URL, e.g. `https://logs-prod-042.grafana.net/loki/api/v1/push` |
+| `LOGGING_ACCOUNT_ID` | Grafana Cloud user/instance id |
+| `LOGGING_API_KEY` | Grafana Cloud access policy token (`glc_...`) |
+
+Production uses the `jwt-pizza-service` source and CI tests use
+`jwt-pizza-service-test`.
+
+### Dashboard
+
+`grafana/deliverable9dashboard.json` contains the logging dashboard (all
+events, HTTP requests/errors, database queries, factory calls, exceptions, and
+volume/status charts). Import it into Grafana, choose the Loki datasource and
+the `source`, then use **Share → Public dashboard** to publish it. The local
+test account is selected by setting the `source` variable to
+`jwt-pizza-service-dev`. Use `./scripts/generatePizzaTraffic.sh <host>` to
+produce traffic while validating the panels.
+
 ## Endpoints
 
 You can get the documentation for all endpoints by making the following request.
