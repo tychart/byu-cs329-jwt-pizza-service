@@ -1,0 +1,273 @@
+tychart@fdesk(fedora45) ~/p/b/terraform > terraform apply
+data.aws_security_group.app: Reading...
+data.aws_subnets.all: Reading...
+data.aws_ecs_task_definition.app: Reading...
+data.aws_ecs_task_definition.app: Read complete after 0s [id=arn:aws:ecs:us-east-1:345594594463:task-definition/jwt-pizza-service:2]
+data.aws_subnets.all: Read complete after 0s [id=us-east-1]
+data.aws_security_group.app: Read complete after 0s [id=sg-01a17ab09d41c678e]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_ecs_cluster.this will be created
+  + resource "aws_ecs_cluster" "this" {
+      + arn      = (known after apply)
+      + id       = (known after apply)
+      + name     = "jwt-pizza-service"
+      + region   = "us-east-1"
+      + tags_all = {
+          + "ManagedBy" = "terraform"
+          + "Project"   = "jwt-pizza-service"
+        }
+
+      + setting (known after apply)
+    }
+
+  # aws_ecs_service.this will be created
+  + resource "aws_ecs_service" "this" {
+      + arn                                = (known after apply)
+      + availability_zone_rebalancing      = (known after apply)
+      + cluster                            = (known after apply)
+      + deployment_maximum_percent         = 200
+      + deployment_minimum_healthy_percent = 100
+      + desired_count                      = 1
+      + enable_ecs_managed_tags            = false
+      + enable_execute_command             = false
+      + iam_role                           = (known after apply)
+      + id                                 = (known after apply)
+      + launch_type                        = (known after apply)
+      + name                               = "jwt-pizza-service"
+      + platform_version                   = "LATEST"
+      + region                             = "us-east-1"
+      + scheduling_strategy                = "REPLICA"
+      + tags_all                           = {
+          + "ManagedBy" = "terraform"
+          + "Project"   = "jwt-pizza-service"
+        }
+      + task_definition                    = "arn:aws:ecs:us-east-1:345594594463:task-definition/jwt-pizza-service:2"
+      + triggers                           = (known after apply)
+      + wait_for_steady_state              = false
+
+      + capacity_provider_strategy {
+          + base              = 0
+          + capacity_provider = "FARGATE_SPOT"
+          + weight            = 1
+        }
+
+      + deployment_circuit_breaker {
+          + enable   = true
+          + rollback = true
+        }
+
+      + deployment_configuration (known after apply)
+
+      + load_balancer {
+          + container_name   = "jwt-pizza-service"
+          + container_port   = 80
+          + target_group_arn = (known after apply)
+            # (1 unchanged attribute hidden)
+        }
+
+      + network_configuration {
+          + assign_public_ip = true
+          + security_groups  = [
+              + "sg-01a17ab09d41c678e",
+            ]
+          + subnets          = [
+              + "subnet-06bc33fdc9d4b769f",
+              + "subnet-077fa9889ad917179",
+              + "subnet-08dd15c374fba457c",
+              + "subnet-0a8da2018e53814ad",
+              + "subnet-0b6c497c733c77782",
+              + "subnet-0c7b572fc83cb6cdd",
+            ]
+        }
+    }
+
+  # aws_lb.this will be created
+  + resource "aws_lb" "this" {
+      + arn                                                          = (known after apply)
+      + arn_suffix                                                   = (known after apply)
+      + client_keep_alive                                            = 3600
+      + desync_mitigation_mode                                       = "defensive"
+      + dns_name                                                     = (known after apply)
+      + drop_invalid_header_fields                                   = false
+      + enable_deletion_protection                                   = false
+      + enable_http2                                                 = true
+      + enable_prefix_for_ipv6_source_nat                            = (known after apply)
+      + enable_tls_version_and_cipher_suite_headers                  = false
+      + enable_waf_fail_open                                         = false
+      + enable_xff_client_port                                       = false
+      + enable_zonal_shift                                           = false
+      + enforce_security_group_inbound_rules_on_private_link_traffic = (known after apply)
+      + id                                                           = (known after apply)
+      + idle_timeout                                                 = 60
+      + internal                                                     = (known after apply)
+      + ip_address_type                                              = (known after apply)
+      + load_balancer_type                                           = "application"
+      + name                                                         = "jwt-pizza-service"
+      + name_prefix                                                  = (known after apply)
+      + preserve_host_header                                         = false
+      + region                                                       = "us-east-1"
+      + secondary_ips_auto_assigned_per_subnet                       = (known after apply)
+      + security_groups                                              = [
+          + "sg-01a17ab09d41c678e",
+        ]
+      + subnets                                                      = [
+          + "subnet-06bc33fdc9d4b769f",
+          + "subnet-077fa9889ad917179",
+          + "subnet-08dd15c374fba457c",
+          + "subnet-0a8da2018e53814ad",
+          + "subnet-0b6c497c733c77782",
+          + "subnet-0c7b572fc83cb6cdd",
+        ]
+      + tags_all                                                     = {
+          + "ManagedBy" = "terraform"
+          + "Project"   = "jwt-pizza-service"
+        }
+      + vpc_id                                                       = (known after apply)
+      + xff_header_processing_mode                                   = "append"
+      + zone_id                                                      = (known after apply)
+
+      + subnet_mapping (known after apply)
+    }
+
+  # aws_lb_listener.https will be created
+  + resource "aws_lb_listener" "https" {
+      + arn                                                                   = (known after apply)
+      + certificate_arn                                                       = "arn:aws:acm:us-east-1:345594594463:certificate/bd996fc2-b779-4c6f-900b-e3f0cabeef7c"
+      + id                                                                    = (known after apply)
+      + load_balancer_arn                                                     = (known after apply)
+      + port                                                                  = 443
+      + protocol                                                              = "HTTPS"
+      + region                                                                = "us-east-1"
+      + routing_http_request_x_amzn_mtls_clientcert_header_name               = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_issuer_header_name        = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_leaf_header_name          = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_subject_header_name       = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_validity_header_name      = (known after apply)
+      + routing_http_request_x_amzn_tls_cipher_suite_header_name              = (known after apply)
+      + routing_http_request_x_amzn_tls_version_header_name                   = (known after apply)
+      + routing_http_response_access_control_allow_credentials_header_value   = (known after apply)
+      + routing_http_response_access_control_allow_headers_header_value       = (known after apply)
+      + routing_http_response_access_control_allow_methods_header_value       = (known after apply)
+      + routing_http_response_access_control_allow_origin_header_value        = (known after apply)
+      + routing_http_response_access_control_expose_headers_header_value      = (known after apply)
+      + routing_http_response_access_control_max_age_header_value             = (known after apply)
+      + routing_http_response_content_security_policy_header_value            = (known after apply)
+      + routing_http_response_server_enabled                                  = (known after apply)
+      + routing_http_response_strict_transport_security_header_value          = (known after apply)
+      + routing_http_response_x_content_type_options_header_value             = (known after apply)
+      + routing_http_response_x_frame_options_header_value                    = (known after apply)
+      + ssl_policy                                                            = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+      + tags_all                                                              = {
+          + "ManagedBy" = "terraform"
+          + "Project"   = "jwt-pizza-service"
+        }
+      + tcp_idle_timeout_seconds                                              = (known after apply)
+
+      + default_action {
+          + order            = (known after apply)
+          + target_group_arn = (known after apply)
+          + type             = "forward"
+        }
+
+      + mutual_authentication (known after apply)
+    }
+
+  # aws_lb_target_group.this will be created
+  + resource "aws_lb_target_group" "this" {
+      + arn                                = (known after apply)
+      + arn_suffix                         = (known after apply)
+      + connection_termination             = (known after apply)
+      + deregistration_delay               = "300"
+      + id                                 = (known after apply)
+      + ip_address_type                    = (known after apply)
+      + lambda_multi_value_headers_enabled = false
+      + load_balancer_arns                 = (known after apply)
+      + load_balancing_algorithm_type      = (known after apply)
+      + load_balancing_anomaly_mitigation  = (known after apply)
+      + load_balancing_cross_zone_enabled  = (known after apply)
+      + name                               = "jwt-pizza-service"
+      + name_prefix                        = (known after apply)
+      + port                               = 80
+      + preserve_client_ip                 = (known after apply)
+      + protocol                           = "HTTP"
+      + protocol_version                   = (known after apply)
+      + proxy_protocol_v2                  = false
+      + region                             = "us-east-1"
+      + slow_start                         = 0
+      + tags_all                           = {
+          + "ManagedBy" = "terraform"
+          + "Project"   = "jwt-pizza-service"
+        }
+      + target_type                        = "ip"
+      + vpc_id                             = "vpc-0dcb0e82770857bd0"
+
+      + health_check {
+          + enabled             = true
+          + healthy_threshold   = 3
+          + interval            = 30
+          + matcher             = "200"
+          + path                = "/api/docs"
+          + port                = "traffic-port"
+          + protocol            = "HTTP"
+          + timeout             = (known after apply)
+          + unhealthy_threshold = 3
+        }
+
+      + stickiness (known after apply)
+
+      + target_failover (known after apply)
+
+      + target_group_health (known after apply)
+
+      + target_health_state (known after apply)
+    }
+
+Plan: 5 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + cluster_name           = "jwt-pizza-service"
+  + listener_arn           = (known after apply)
+  + load_balancer_dns_name = (known after apply)
+  + service_name           = "jwt-pizza-service"
+  + target_group_arn       = (known after apply)
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: ^C
+
+tychart@fdesk(fedora45) ~/p/b/terraform > terraform apply
+data.aws_security_group.app: Reading...
+data.aws_subnets.all: Reading...
+data.aws_ecs_task_definition.app: Reading...
+aws_ecs_cluster.this: Refreshing state... [id=arn:aws:ecs:us-east-1:345594594463:cluster/jwt-pizza-service]
+aws_lb_target_group.this: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:345594594463:targetgroup/jwt-pizza-service/908c7088035e4e59]
+data.aws_ecs_task_definition.app: Read complete after 0s [id=arn:aws:ecs:us-east-1:345594594463:task-definition/jwt-pizza-service:2]
+data.aws_subnets.all: Read complete after 0s [id=us-east-1]
+data.aws_security_group.app: Read complete after 0s [id=sg-01a17ab09d41c678e]
+aws_lb.this: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:345594594463:loadbalancer/app/jwt-pizza-service/e4f2412c3f6e8815]
+aws_lb_listener.https: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:345594594463:listener/app/jwt-pizza-service/e4f2412c3f6e8815/31a0c80b2700024f]
+aws_ecs_service.this: Refreshing state... [id=arn:aws:ecs:us-east-1:345594594463:service/jwt-pizza-service/jwt-pizza-service]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no
+differences, so no changes are needed.
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+cluster_name = "jwt-pizza-service"
+listener_arn = "arn:aws:elasticloadbalancing:us-east-1:345594594463:listener/app/jwt-pizza-service/e4f2412c3f6e8815/31a0c80b2700024f"
+load_balancer_dns_name = "jwt-pizza-service-357180497.us-east-1.elb.amazonaws.com"
+service_name = "jwt-pizza-service"
+target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:345594594463:targetgroup/jwt-pizza-service/908c7088035e4e59"
+tychart@fdesk(fedora45) ~/p/b/terraform > 

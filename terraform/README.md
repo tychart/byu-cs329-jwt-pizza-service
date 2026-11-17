@@ -82,6 +82,48 @@ Push to `main` (or run the workflow manually). The pipeline builds the image
 into ECR and then runs `aws ecs update-service --force-new-deployment`, using
 the cluster and service names that Terraform just created.
 
+## If the state file is lost
+
+`terraform.tfstate` is git-ignored, so a fresh clone (or a cleaned-out
+`terraform/` folder) has no memory of the running stack. The symptoms are a
+plan that wants to **create** everything even though the app is live:
+
+```
+tf plan      # Plan: 5 to add, 0 to change, 0 to destroy.
+```
+
+Do **not** apply that plan. Terraform would try to create a second load
+balancer and target group with the same names, which AWS rejects
+(`DuplicateLoadBalancerName`), leaving a half-written state behind. The stack
+already exists and already matches this configuration, so **adopt** it instead:
+
+```sh
+# 1. find the live IDs (they change whenever the stack is recreated)
+aws elbv2 describe-load-balancers   --names jwt-pizza-service \
+  --query 'LoadBalancers[0].[LoadBalancerArn,DNSName]' --output text
+aws elbv2 describe-target-groups    --names jwt-pizza-service \
+  --query 'TargetGroups[0].TargetGroupArn' --output text
+aws elbv2 describe-listeners \
+  --load-balancer-arn <ALB_ARN> --query 'Listeners[?Port==`443`].ListenerArn' --output text
+
+# 2. import each resource into state (no AWS changes)
+terraform import aws_ecs_cluster.this        jwt-pizza-service
+terraform import aws_ecs_service.this        jwt-pizza-service/jwt-pizza-service
+terraform import aws_lb.this                 <ALB_ARN>
+terraform import aws_lb_target_group.this    <TARGET_GROUP_ARN>
+terraform import aws_lb_listener.https       <LISTENER_ARN>
+
+# 3. it should now be a no-op
+terraform plan      # → "No changes. Your infrastructure matches the configuration."
+```
+
+Everything above only rewrites the local state file; nothing in AWS is touched
+and the running service keeps serving traffic.
+
+Back the state up somewhere (a private gist, or an S3 bucket with a
+`backend "s3"` block) if you care about keeping the stack manageable — losing
+it again just means repeating the imports.
+
 ## Tearing it down
 
 ```sh
@@ -108,8 +150,8 @@ To pause the database bill without deleting data, stop it in the RDS console
 ## Things to know
 
 - `terraform.tfstate` stays on this machine and is git-ignored. It is the only
-  record of what the stack owns, so don't delete it — if you lose it, remove the
-  stack by hand or with `terraform import`.
+  record of what the stack owns, so don't delete it — if you lose it, see
+  *If the state file is lost* above (`terraform import`, not `terraform apply`).
 - `terraform.tfvars` is safe to commit: IDs and ARNs, no secrets.
 - The ECS service runs on **FARGATE_SPOT** (change the one line in `main.tf` to
   `FARGATE` for guaranteed capacity) and the target group health-checks
